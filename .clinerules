@@ -1,0 +1,5 @@
+# Development Protocol
+- DO NOT rewrite an entire file if you only need to change a few lines. Use partial edits.
+- Always run terminal test commands before declaring a bug "fixed".
+- If you hit an API 429/Resource Exhausted rate limit, pause operations and ask me to wait.
+- Do not add massive external node modules or packages without asking me first.

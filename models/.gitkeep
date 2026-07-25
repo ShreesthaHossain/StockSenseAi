@@ -1,0 +1,2 @@
+# Placeholder — generate the real model with: npm run train
+# After training, this file will be replaced by stock_model.onnx
