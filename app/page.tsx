@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Results } from "@/components/results";
+import { StockSearch } from "@/components/stock-search";
 import type { PredictionResult } from "@/lib/types";
-
-const QUICK_PICKS = ["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN"];
 
 export default function DashboardPage() {
   const [ticker, setTicker] = useState("AAPL");
@@ -47,33 +46,13 @@ export default function DashboardPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-6">
-        <div className="mb-6 flex flex-wrap items-center gap-3">
-          <input
-            value={ticker}
-            onChange={(e) => setTicker(e.target.value.toUpperCase())}
-            onKeyDown={(e) => e.key === "Enter" && analyze()}
-            placeholder="Ticker e.g. AAPL"
-            className="h-10 w-40 rounded-lg border border-zinc-700 bg-zinc-900 px-3 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        <div className="mb-6">
+          <StockSearch
+            ticker={ticker}
+            onTickerChange={setTicker}
+            onSearch={analyze}
+            loading={loading}
           />
-          <button
-            onClick={() => analyze()}
-            disabled={loading}
-            className="h-10 rounded-lg bg-emerald-600 px-4 text-sm font-medium hover:bg-emerald-500 disabled:opacity-50"
-          >
-            {loading ? "Analyzing…" : "Analyze"}
-          </button>
-          <div className="flex gap-2">
-            {QUICK_PICKS.map((s) => (
-              <button
-                key={s}
-                onClick={() => analyze(s)}
-                disabled={loading}
-                className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs hover:bg-zinc-800 disabled:opacity-50"
-              >
-                {s}
-              </button>
-            ))}
-          </div>
         </div>
 
         {error && (
