@@ -17,6 +17,11 @@ export interface IndicatorValues {
   volumeChange: number;
   return1d: number;
   return5d: number;
+  price_change_3d: number;
+  price_change_7d: number;
+  price_change_14d: number;
+  volatility_5d: number;
+  volatility_10d: number;
 }
 
 export interface PredictionResult {

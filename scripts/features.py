@@ -15,6 +15,11 @@ FEATURE_ORDER = [
     "volumeChange",
     "return1d",
     "return5d",
+    "price_change_3d",
+    "price_change_7d",
+    "price_change_14d",
+    "volatility_5d",
+    "volatility_10d",
 ]
 
 
@@ -55,6 +60,13 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # Target: 1 if next-day close > today close, else 0
     data["target"] = (closes.shift(-1) > closes).astype(int)
+
+    # Additional features
+    data["price_change_3d"] = closes.pct_change(3)
+    data["price_change_7d"] = closes.pct_change(7)
+    data["price_change_14d"] = closes.pct_change(14)
+    data["volatility_5d"] = closes.pct_change().rolling(window=5).std()
+    data["volatility_10d"] = closes.pct_change().rolling(window=10).std()
 
     return data
 

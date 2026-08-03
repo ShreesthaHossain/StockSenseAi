@@ -10,6 +10,11 @@ export const FEATURE_ORDER = [
   "volumeChange",
   "return1d",
   "return5d",
+  "price_change_3d",
+  "price_change_7d",
+  "price_change_14d",
+  "volatility_5d",
+  "volatility_10d",
 ] as const;
 
 function sma(values: number[], period: number): number {
@@ -69,8 +74,27 @@ export function computeIndicators(bars: OHLCVBar[]): IndicatorValues {
   const latestClose = closes[closes.length - 1];
   const prevClose = closes[closes.length - 2];
   const close5Ago = closes[closes.length - 6];
+  const close3Ago = closes[closes.length - 4];
+  const close7Ago = closes[closes.length - 8];
+  const close14Ago = closes[closes.length - 15];
   const latestVolume = volumes[volumes.length - 1];
   const prevVolume = volumes[volumes.length - 2];
+
+  // Price changes
+  const priceChange3d = close3Ago > 0 ? (latestClose - close3Ago) / close3Ago : 0;
+  const priceChange7d = close7Ago > 0 ? (latestClose - close7Ago) / close7Ago : 0;
+  const priceChange14d = close14Ago > 0 ? (latestClose - close14Ago) / close14Ago : 0;
+
+  // Volatility (standard deviation of returns)
+  const returns = closes.map((c, i) => i > 0 ? (c - closes[i-1]) / closes[i-1] : 0);
+  const volatility5d = returns.slice(-5).reduce((sum, r, i, arr) => {
+    const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+    return sum + Math.pow(r - mean, 2);
+  }, 0) / 5;
+  const volatility10d = returns.slice(-10).reduce((sum, r, i, arr) => {
+    const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+    return sum + Math.pow(r - mean, 2);
+  }, 0) / 10;
 
   return {
     sma5: sma(closes, 5),
@@ -83,6 +107,11 @@ export function computeIndicators(bars: OHLCVBar[]): IndicatorValues {
       prevVolume > 0 ? (latestVolume - prevVolume) / prevVolume : 0,
     return1d: prevClose > 0 ? (latestClose - prevClose) / prevClose : 0,
     return5d: close5Ago > 0 ? (latestClose - close5Ago) / close5Ago : 0,
+    price_change_3d: priceChange3d,
+    price_change_7d: priceChange7d,
+    price_change_14d: priceChange14d,
+    volatility_5d: volatility5d,
+    volatility_10d: volatility10d,
   };
 }
 

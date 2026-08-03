@@ -8,18 +8,25 @@
     "macdSignal",
     "volumeChange",
     "return1d",
-    "return5d"
+    "return5d",
+    "price_change_3d",
+    "price_change_7d",
+    "price_change_14d",
+    "volatility_5d",
+    "volatility_10d"
   ],
-  "accuracy": 0.5217,
-  "precision": 0.5316,
-  "recall": 0.7922,
-  "trainedAt": "2026-07-24T14:50:11.392944+00:00",
+  "accuracy": 0.4849,
+  "precision": 0.5107,
+  "recall": 0.2228,
+  "trainedAt": "2026-08-03T13:12:11.920258+00:00",
   "tickers": [
     "AAPL",
-    "GOOGL",
     "MSFT",
+    "NVDA",
     "TSLA",
-    "AMZN"
+    "AMZN",
+    "GOOGL",
+    "META"
   ],
-  "samples": 2415
+  "samples": 5131
 }
