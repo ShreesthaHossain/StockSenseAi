@@ -10,18 +10,37 @@ import {
 } from "recharts";
 import type { PredictionResult } from "@/lib/types";
 import { formatCurrency, formatPercent } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ResultsProps {
   data: PredictionResult;
+  isLoading?: boolean;
 }
 
-export function Results({ data }: ResultsProps) {
+export function Results({ data, isLoading = false }: ResultsProps) {
   const isUp = data.trend === "up";
   const chartData = data.history.map((bar) => ({
     date: bar.date.slice(5),
     close: bar.close,
   }));
   const latestClose = data.history.at(-1)?.close ?? 0;
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Skeleton className="mb-4 h-6 w-48 rounded" />
+          <Skeleton className="aspect-[4/3] rounded-xl border border-zinc-800 bg-zinc-900/50" />
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-32 rounded" />
+          <Skeleton className="h-8 w-24 rounded" />
+          <Skeleton className="h-8 w-20 rounded" />
+          <Skeleton className="aspect-[2/1] rounded-xl border border-zinc-800 bg-zinc-900/50" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">

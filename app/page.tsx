@@ -61,7 +61,7 @@ export default function DashboardPage() {
           </p>
         )}
 
-        {result && !loading && <Results data={result} />}
+        {result && <Results data={result} isLoading={loading} />}
       </main>
     </div>
   );
