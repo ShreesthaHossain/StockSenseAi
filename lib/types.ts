@@ -22,6 +22,10 @@ export interface IndicatorValues {
   price_change_14d: number;
   volatility_5d: number;
   volatility_10d: number;
+  bb_position: number;
+  bb_width: number;
+  obv: number;
+  roc_5: number;
 }
 
 export interface PredictionResult {

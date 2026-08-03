@@ -13,7 +13,12 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    precision_score,
+    recall_score,
+)
 from sklearn.model_selection import train_test_split
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -21,11 +26,11 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from features import FEATURE_ORDER, get_feature_matrix
 
-DEFAULT_TICKERS = ["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN"]
+DEFAULT_TICKERS = ["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN", "NVDA", "META"]
 MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 
 
-def fetch_ticker_data(ticker: str, period: str = "2y") -> pd.DataFrame:
+def fetch_ticker_data(ticker: str, period: str = "3y") -> pd.DataFrame:
     data = yf.Ticker(ticker).history(period=period)
     if data.empty:
         raise ValueError(f"No data returned for {ticker}")
@@ -42,7 +47,7 @@ def main() -> None:
         default=DEFAULT_TICKERS,
         help="Tickers to include in training",
     )
-    parser.add_argument("--period", default="2y", help="yfinance history period")
+    parser.add_argument("--period", default="3y", help="yfinance history period")
     args = parser.parse_args()
 
     all_x: list[np.ndarray] = []
@@ -59,14 +64,20 @@ def main() -> None:
     x = np.vstack(all_x)
     y = np.concatenate(all_y)
 
+    print(f"\nTotal samples: {len(x)}")
+    print(f"Class distribution: down={int(np.sum(y == 0))}, up={int(np.sum(y == 1))}")
+
     # Time-series aware split: no shuffle
     x_train, x_test, y_train, y_test = train_test_split(
         x, y, test_size=0.2, shuffle=False
     )
 
     model = RandomForestClassifier(
-        n_estimators=100,
-        max_depth=10,
+        n_estimators=300,
+        max_depth=None,
+        min_samples_split=5,
+        min_samples_leaf=2,
+        class_weight="balanced",
         random_state=42,
         n_jobs=-1,
     )
@@ -80,6 +91,15 @@ def main() -> None:
     print(f"\nAccuracy:  {accuracy:.3f}")
     print(f"Precision: {precision:.3f}")
     print(f"Recall:    {recall:.3f}")
+    print(f"\nClassification Report:")
+    print(classification_report(y_test, y_pred, target_names=["down", "up"]))
+
+    # Feature importances
+    importances = model.feature_importances_
+    sorted_idx = np.argsort(importances)[::-1]
+    print("Feature Importances:")
+    for idx in sorted_idx:
+        print(f"  {FEATURE_ORDER[idx]:20s} {importances[idx]:.4f}")
 
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
 

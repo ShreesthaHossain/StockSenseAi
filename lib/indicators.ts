@@ -15,6 +15,10 @@ export const FEATURE_ORDER = [
   "price_change_14d",
   "volatility_5d",
   "volatility_10d",
+  "bb_position",
+  "bb_width",
+  "obv",
+  "roc_5",
 ] as const;
 
 function sma(values: number[], period: number): number {
@@ -66,6 +70,37 @@ function computeMacd(closes: number[]): { macd: number; signal: number } {
   };
 }
 
+function computeBollingerBands(
+  closes: number[],
+  period = 20
+): { bbPosition: number; bbWidth: number } {
+  if (closes.length < period) return { bbPosition: NaN, bbWidth: NaN };
+
+  const slice = closes.slice(-period);
+  const mean = slice.reduce((a, b) => a + b, 0) / period;
+  const variance = slice.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / period;
+  const std = Math.sqrt(variance);
+
+  const upper = mean + 2 * std;
+  const lower = mean - 2 * std;
+  const width = (upper - lower) / mean;
+  const position = upper !== lower ? (closes[closes.length - 1] - lower) / (upper - lower) : 0.5;
+
+  return { bbPosition: position, bbWidth: width };
+}
+
+function computeObv(volumes: number[], closes: number[]): number {
+  if (volumes.length < 2) return 0;
+
+  let obv = volumes[0];
+  for (let i = 1; i < volumes.length; i++) {
+    const change = closes[i] - closes[i - 1];
+    if (change > 0) obv += volumes[i];
+    else if (change < 0) obv -= volumes[i];
+  }
+  return obv;
+}
+
 export function computeIndicators(bars: OHLCVBar[]): IndicatorValues {
   const closes = bars.map((b) => b.close);
   const volumes = bars.map((b) => b.volume);
@@ -86,7 +121,7 @@ export function computeIndicators(bars: OHLCVBar[]): IndicatorValues {
   const priceChange14d = close14Ago > 0 ? (latestClose - close14Ago) / close14Ago : 0;
 
   // Volatility (standard deviation of returns)
-  const returns = closes.map((c, i) => i > 0 ? (c - closes[i-1]) / closes[i-1] : 0);
+  const returns = closes.map((c, i) => (i > 0 ? (c - closes[i - 1]) / closes[i - 1] : 0));
   const volatility5d = returns.slice(-5).reduce((sum, r, i, arr) => {
     const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
     return sum + Math.pow(r - mean, 2);
@@ -96,6 +131,21 @@ export function computeIndicators(bars: OHLCVBar[]): IndicatorValues {
     return sum + Math.pow(r - mean, 2);
   }, 0) / 10;
 
+  // Bollinger Bands
+  const { bbPosition, bbWidth } = computeBollingerBands(closes);
+
+  // OBV (normalized by recent mean)
+  const obv = computeObv(volumes, closes);
+  const obvSlice = volumes.slice(-20);
+  const obvMean = obvSlice.reduce((a, b) => a + b, 0) / obvSlice.length;
+  const obvStd = Math.sqrt(
+    obvSlice.reduce((sum, v) => sum + Math.pow(v - obvMean, 2), 0) / obvSlice.length
+  );
+  const obvNormalized = obvStd > 0 ? (obv - obvMean * closes.length) / (obvStd * Math.sqrt(closes.length)) : 0;
+
+  // ROC 5-day
+  const roc5 = close5Ago > 0 ? (latestClose - close5Ago) / close5Ago : 0;
+
   return {
     sma5: sma(closes, 5),
     sma10: sma(closes, 10),
@@ -103,8 +153,7 @@ export function computeIndicators(bars: OHLCVBar[]): IndicatorValues {
     rsi14: computeRsi(closes, 14),
     macd,
     macdSignal: signal,
-    volumeChange:
-      prevVolume > 0 ? (latestVolume - prevVolume) / prevVolume : 0,
+    volumeChange: prevVolume > 0 ? (latestVolume - prevVolume) / prevVolume : 0,
     return1d: prevClose > 0 ? (latestClose - prevClose) / prevClose : 0,
     return5d: close5Ago > 0 ? (latestClose - close5Ago) / close5Ago : 0,
     price_change_3d: priceChange3d,
@@ -112,6 +161,10 @@ export function computeIndicators(bars: OHLCVBar[]): IndicatorValues {
     price_change_14d: priceChange14d,
     volatility_5d: volatility5d,
     volatility_10d: volatility10d,
+    bb_position: bbPosition,
+    bb_width: bbWidth,
+    obv: obvNormalized,
+    roc_5: roc5,
   };
 }
 
