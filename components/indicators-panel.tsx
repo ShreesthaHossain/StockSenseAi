@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -7,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import type { IndicatorValues } from "@/lib/types";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 
@@ -15,17 +17,22 @@ interface IndicatorsPanelProps {
   latestClose: number;
 }
 
-const INDICATOR_ROWS = [
-  { label: "SMA (5)", key: "sma5" as const, format: "currency" as const },
-  { label: "SMA (10)", key: "sma10" as const, format: "currency" as const },
+// Most important indicators shown by default
+const PRIMARY_INDICATORS = [
   { label: "SMA (20)", key: "sma20" as const, format: "currency" as const },
-  { label: "SMA (50)", key: "sma50" as const, format: "currency" as const },
   { label: "RSI (14)", key: "rsi14" as const, format: "number" as const },
   { label: "MACD", key: "macd" as const, format: "number" as const },
-  { label: "MACD Signal", key: "macdSignal" as const, format: "number" as const },
-  { label: "MACD Hist", key: "macdHistogram" as const, format: "number" as const },
   { label: "Volume Change", key: "volumeChange" as const, format: "percent" as const },
   { label: "1D Return", key: "return1d" as const, format: "percent" as const },
+];
+
+// All other indicators shown when "Show more" is clicked
+const ALL_INDICATORS = [
+  { label: "SMA (5)", key: "sma5" as const, format: "currency" as const },
+  { label: "SMA (10)", key: "sma10" as const, format: "currency" as const },
+  { label: "SMA (50)", key: "sma50" as const, format: "currency" as const },
+  { label: "MACD Signal", key: "macdSignal" as const, format: "number" as const },
+  { label: "MACD Hist", key: "macdHistogram" as const, format: "number" as const },
   { label: "5D Return", key: "return5d" as const, format: "percent" as const },
   { label: "10D Return", key: "return10d" as const, format: "percent" as const },
   { label: "20D Return", key: "return20d" as const, format: "percent" as const },
@@ -68,7 +75,7 @@ function IndicatorRow({
       : value.toFixed(4);
 
   return (
-    <div className="flex items-center justify-between py-1 text-xs">
+    <div className="flex items-center justify-between py-1.5 text-sm">
       <span className="text-zinc-400">{label}</span>
       <span className="font-medium tabular-nums">{formatted}</span>
     </div>
@@ -79,23 +86,37 @@ export function IndicatorsPanel({
   indicators,
   latestClose,
 }: IndicatorsPanelProps) {
+  const [showAll, setShowAll] = useState(false);
+
+  const displayedIndicators = showAll ? ALL_INDICATORS : PRIMARY_INDICATORS;
+
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
-        <CardTitle>Technical Indicators</CardTitle>
+        <CardTitle className="text-base">Technical Indicators</CardTitle>
         <CardDescription>
           Latest close: {formatCurrency(latestClose)}
         </CardDescription>
       </CardHeader>
-      <CardContent className="divide-y divide-zinc-800 max-h-96 overflow-y-auto">
-        {INDICATOR_ROWS.map((row) => (
-          <IndicatorRow
-            key={row.key}
-            label={row.label}
-            value={indicators[row.key]}
-            format={row.format}
-          />
-        ))}
+      <CardContent>
+        <div className="divide-y divide-zinc-800">
+          {displayedIndicators.map((row) => (
+            <IndicatorRow
+              key={row.key}
+              label={row.label}
+              value={indicators[row.key]}
+              format={row.format}
+            />
+          ))}
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowAll(!showAll)}
+          className="mt-2 w-full justify-center text-xs text-zinc-400 hover:text-zinc-200"
+        >
+          {showAll ? "Show less" : "Show more"}
+        </Button>
       </CardContent>
     </Card>
   );
