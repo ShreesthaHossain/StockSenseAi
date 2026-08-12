@@ -6,39 +6,96 @@ import {
 } from "@/lib/indicators";
 import { getModelMeta, predict } from "@/lib/inference";
 import { fetchStockHistory } from "@/lib/stock";
+import { generateExplanation } from "@/lib/explanation";
 
 export async function GET(request: NextRequest) {
   try {
     const ticker = request.nextUrl.searchParams.get("ticker");
     if (!ticker) {
-      return NextResponse.json({ error: "Missing ticker" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing ticker", code: "MISSING_TICKER" },
+        { status: 400 }
+      );
     }
 
-    const history = await fetchStockHistory(ticker);
+    const trimmedTicker = ticker.trim().toUpperCase();
+    if (!/^[A-Z]{1,5}$/.test(trimmedTicker)) {
+      return NextResponse.json(
+        { error: "Invalid ticker format. Use 1-5 uppercase letters (e.g., AAPL, GOOGL)", code: "INVALID_TICKER" },
+        { status: 400 }
+      );
+    }
+
+    let history;
+    try {
+      history = await fetchStockHistory(trimmedTicker);
+    } catch (fetchError) {
+      return NextResponse.json(
+        { error: "Unable to fetch stock data. Please check the ticker symbol.", code: "FETCH_ERROR" },
+        { status: 502 }
+      );
+    }
+
+    if (!history || history.length === 0) {
+      return NextResponse.json(
+        { error: "No historical data found for this ticker.", code: "NO_DATA" },
+        { status: 422 }
+      );
+    }
+
     if (history.length < 30) {
-      return NextResponse.json({ error: "Not enough data" }, { status: 422 });
+      return NextResponse.json(
+        { error: `Not enough data (${history.length} days available). Need at least 30 days.`, code: "INSUFFICIENT_DATA" },
+        { status: 422 }
+      );
     }
 
     const indicators = computeIndicators(history);
     const features = indicatorsToFeatureVector(indicators);
 
     if (!isValidFeatureVector(features)) {
-      return NextResponse.json({ error: "Invalid features" }, { status: 422 });
+      return NextResponse.json(
+        { error: "Unable to calculate technical indicators for this stock.", code: "INVALID_FEATURES" },
+        { status: 422 }
+      );
     }
 
     const { trend, confidence } = await predict(features);
     const meta = getModelMeta();
+    const explanation = generateExplanation(indicators, trend);
 
-    return NextResponse.json({
-      ticker: ticker.toUpperCase(),
+    const response = NextResponse.json({
+      ticker: trimmedTicker,
       trend,
       confidence,
       indicators,
       history,
-      meta: { accuracy: meta.accuracy, trainedAt: meta.trainedAt },
+      meta,
+      explanation,
     });
+
+    // Production optimizations
+    response.headers.set("Cache-Control", "public, max-age=300, stale-while-revalidate=60");
+    response.headers.set("Vary", "Accept-Encoding");
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("X-Frame-Options", "DENY");
+    response.headers.set("X-XSS-Protection", "1; mode=block");
+
+    return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Prediction failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    
+    // Log the actual error for debugging
+    console.error("Prediction error:", error);
+    
+    const response = NextResponse.json(
+      { error: "An unexpected error occurred. Please try again later.", code: "SERVER_ERROR" },
+      { status: 500 }
+    );
+    
+    response.headers.set("Cache-Control", "no-store, max-age=0");
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    
+    return response;
   }
 }

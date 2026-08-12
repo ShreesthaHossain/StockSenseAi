@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Results } from "@/components/results";
 import { StockSearch } from "@/components/stock-search";
+import { ErrorAlert } from "@/components/error-alert";
 import type { PredictionResult } from "@/lib/types";
 
 export default function DashboardPage() {
@@ -10,31 +11,54 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PredictionResult | null>(null);
+  const isMountedRef = useRef(false);
+  const hasInitialLoadRef = useRef(false);
 
-  const analyze = useCallback(async (symbol?: string) => {
+  const analyze = useCallback(async (symbol?: string, skipLoading = false) => {
     const t = (symbol ?? ticker).trim().toUpperCase();
     if (!t) return;
 
-    setLoading(true);
-    setError(null);
+    if (!skipLoading) {
+      setLoading(true);
+      setError(null);
+    }
 
     try {
       const res = await fetch(`/api/predict?ticker=${t}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Request failed");
-      setResult(data);
-      setTicker(t);
+      if (isMountedRef.current) {
+        setResult(data);
+        setTicker(t);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-      setResult(null);
+      if (isMountedRef.current) {
+        setError(err instanceof Error ? err.message : "Something went wrong");
+        setResult(null);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current && !skipLoading) {
+        setLoading(false);
+      }
     }
   }, [ticker]);
 
+  const handleRetry = () => {
+    setError(null);
+    analyze();
+  };
+
   useEffect(() => {
-    void analyze("AAPL");
-  }, []);
+    isMountedRef.current = true;
+    // Initial load - skip loading state to avoid synchronous setState
+    if (!hasInitialLoadRef.current) {
+      hasInitialLoadRef.current = true;
+      void analyze("AAPL", true);
+    }
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [analyze]);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50">
@@ -56,12 +80,10 @@ export default function DashboardPage() {
         </div>
 
         {error && (
-          <p className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            {error}
-          </p>
+          <ErrorAlert error={error} onRetry={handleRetry} />
         )}
 
-        {result && <Results data={result} isLoading={loading} />}
+        {!error && result && <Results data={result} isLoading={loading} />}
       </main>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -11,7 +11,7 @@ interface StockSearchProps {
   loading?: boolean;
 }
 
-const POPULAR_TICKERS = ["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN"];
+const POPULAR_TICKERS = ["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN", "NVDA", "META", "JPM", "V", "JNJ", "WMT", "PG", "HD", "MA", "BAC"];
 
 export function StockSearch({
   ticker,
@@ -28,15 +28,32 @@ export function StockSearch({
         }}
         className="flex gap-2"
       >
-        <Input
-          placeholder="Enter ticker (e.g. AAPL)"
-          value={ticker}
-          onChange={(e) => onTickerChange(e.target.value.toUpperCase())}
-          className="uppercase"
-        />
+        <div className="relative flex-1">
+          <Input
+            placeholder="Enter ticker (e.g. AAPL)"
+            value={ticker}
+            onChange={(e) => onTickerChange(e.target.value.toUpperCase())}
+            className="uppercase pr-10"
+            disabled={loading}
+          />
+          {loading && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
+            </div>
+          )}
+        </div>
         <Button type="submit" disabled={loading || !ticker.trim()}>
-          <Search className="mr-2 h-4 w-4" />
-          Analyze
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Analyzing...
+            </>
+          ) : (
+            <>
+              <Search className="mr-2 h-4 w-4" />
+              Analyze
+            </>
+          )}
         </Button>
       </form>
       <div className="flex flex-wrap gap-2">
@@ -50,6 +67,7 @@ export function StockSearch({
               onTickerChange(symbol);
               onSearch(symbol);
             }}
+            className="transition-all duration-200 hover:scale-105"
           >
             {symbol}
           </Button>

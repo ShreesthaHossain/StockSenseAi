@@ -11,6 +11,9 @@ import {
 import type { PredictionResult } from "@/lib/types";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PredictionCard } from "@/components/prediction-card";
+import { IndicatorsPanel } from "@/components/indicators-panel";
+import { TrendMeter } from "@/components/trend-meter";
 
 interface ResultsProps {
   data: PredictionResult;
@@ -31,9 +34,10 @@ export function Results({ data, isLoading = false }: ResultsProps) {
         <div className="lg:col-span-2">
           <Skeleton className="mb-4 h-6 w-48 rounded" />
           <Skeleton className="aspect-[4/3] rounded-xl border border-zinc-800 bg-zinc-900/50" />
+          <Skeleton className="mt-4 h-24 w-full rounded-xl border border-zinc-800 bg-zinc-900/50" />
         </div>
         <div className="space-y-4">
-          <Skeleton className="h-10 w-32 rounded" />
+          <Skeleton className="h-12 w-40 rounded" />
           <Skeleton className="h-8 w-24 rounded" />
           <Skeleton className="h-8 w-20 rounded" />
           <Skeleton className="aspect-[2/1] rounded-xl border border-zinc-800 bg-zinc-900/50" />
@@ -76,49 +80,23 @@ export function Results({ data, isLoading = false }: ResultsProps) {
             </LineChart>
           </ResponsiveContainer>
         </div>
+
+        <TrendMeter trend={data.trend} confidence={data.confidence} />
       </div>
 
       <div className="space-y-4">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-          <p className="text-sm text-zinc-400">Next-day prediction</p>
-          <p
-            className={`mt-1 text-3xl font-bold ${isUp ? "text-emerald-400" : "text-red-400"}`}
-          >
-            {isUp ? "↑ UP" : "↓ DOWN"}
-          </p>
-          <p className="mt-2 text-sm text-zinc-400">
-            Confidence:{" "}
-            <span className="font-medium text-zinc-100">
-              {formatPercent(data.confidence)}
-            </span>
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">
-            Model accuracy: {formatPercent(data.meta.accuracy)}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-          <p className="mb-3 text-sm font-medium text-zinc-300">Key indicators</p>
-          <dl className="space-y-2 text-sm">
-            <Row label="Latest close" value={formatCurrency(latestClose)} />
-            <Row label="RSI (14)" value={data.indicators.rsi14.toFixed(1)} />
-            <Row label="SMA (20)" value={formatCurrency(data.indicators.sma20)} />
-            <Row
-              label="1D return"
-              value={formatPercent(data.indicators.return1d)}
-            />
-          </dl>
-        </div>
+        <PredictionCard
+          ticker={data.ticker}
+          trend={data.trend}
+          confidence={data.confidence}
+          meta={data.meta}
+          explanation={data.explanation}
+        />
+        <IndicatorsPanel
+          indicators={data.indicators}
+          latestClose={latestClose}
+        />
       </div>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between">
-      <dt className="text-zinc-500">{label}</dt>
-      <dd className="font-medium tabular-nums">{value}</dd>
     </div>
   );
 }
