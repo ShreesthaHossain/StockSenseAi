@@ -103,7 +103,6 @@ export function PredictionCard({
         <p className="text-xs text-zinc-500">
           Trained on {meta.tickers.slice(0, 5).join(", ")}
           {meta.tickers.length > 5 ? ` +${meta.tickers.length - 5} more` : ""}
-          · {new Date(meta.trainedAt).toLocaleDateString()}
         </p>
 
         {/* AI Explanation Section */}
@@ -148,6 +147,10 @@ export function PredictionCard({
           <div className="flex justify-between">
             <span className="text-zinc-400">Prediction horizon:</span>
             <span className="font-medium">Next trading day</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-400">Market movers data:</span>
+            <span className="font-medium">Finnhub.io</span>
           </div>
         </div>
 

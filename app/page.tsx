@@ -48,6 +48,10 @@ export default function DashboardPage() {
     analyze();
   };
 
+  const handleStockSelect = useCallback((selectedTicker: string) => {
+    analyze(selectedTicker);
+  }, [analyze]);
+
   useEffect(() => {
     isMountedRef.current = true;
     // Initial load - skip loading state to avoid synchronous setState
@@ -83,7 +87,13 @@ export default function DashboardPage() {
           <ErrorAlert error={error} onRetry={handleRetry} />
         )}
 
-        {!error && result && <Results data={result} isLoading={loading} />}
+        {!error && result && (
+          <Results 
+            data={result} 
+            isLoading={loading} 
+            onStockSelect={handleStockSelect}
+          />
+        )}
       </main>
     </div>
   );

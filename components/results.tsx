@@ -14,13 +14,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PredictionCard } from "@/components/prediction-card";
 import { IndicatorsPanel } from "@/components/indicators-panel";
 import { TrendMeter } from "@/components/trend-meter";
+import { MarketMovers } from "@/components/market-movers";
 
 interface ResultsProps {
   data: PredictionResult;
   isLoading?: boolean;
+  onStockSelect?: (ticker: string) => void;
 }
 
-export function Results({ data, isLoading = false }: ResultsProps) {
+export function Results({ data, isLoading = false, onStockSelect }: ResultsProps) {
   const isUp = data.trend === "up";
   const chartData = data.history.map((bar) => ({
     date: bar.date.slice(5),
@@ -82,16 +84,20 @@ export function Results({ data, isLoading = false }: ResultsProps) {
         </div>
 
         <TrendMeter trend={data.trend} confidence={data.confidence} />
+
+        <div className="mt-6">
+          <PredictionCard
+            ticker={data.ticker}
+            trend={data.trend}
+            confidence={data.confidence}
+            meta={data.meta}
+            explanation={data.explanation}
+          />
+        </div>
       </div>
 
       <div className="space-y-4">
-        <PredictionCard
-          ticker={data.ticker}
-          trend={data.trend}
-          confidence={data.confidence}
-          meta={data.meta}
-          explanation={data.explanation}
-        />
+        <MarketMovers onStockSelect={onStockSelect} />
         <IndicatorsPanel
           indicators={data.indicators}
           latestClose={latestClose}
