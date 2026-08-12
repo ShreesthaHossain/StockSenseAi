@@ -135,6 +135,22 @@ export function PredictionCard({
           </div>
         )}
 
+        {/* Prediction Information Row */}
+        <div className="mt-4 flex flex-col gap-1 text-xs text-zinc-500">
+          <div className="flex justify-between">
+            <span className="text-zinc-400">Data source:</span>
+            <span className="font-medium">Yahoo Finance</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-400">Model:</span>
+            <span className="font-medium">Random Forest</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-400">Prediction horizon:</span>
+            <span className="font-medium">Next trading day</span>
+          </div>
+        </div>
+
         <div className="mt-4 rounded-lg border border-zinc-700 bg-zinc-900/30 p-3">
           <p className="text-xs text-zinc-400">
             ⚠️ This prediction is intended for educational purposes only and should not be considered financial or investment advice. Always do your own research before making any investment decisions.
