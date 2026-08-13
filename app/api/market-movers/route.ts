@@ -28,21 +28,23 @@ const MAJOR_STOCKS = [
 
 function isMarketOpen(): boolean {
   const now = new Date();
-  const dayOfWeek = now.getDay();
   
-  // Weekend check
+  // Convert current time to US Eastern Time (ET)
+  const etString = now.toLocaleString("en-US", { timeZone: "America/New_York" });
+  const etDate = new Date(etString);
+  
+  const dayOfWeek = etDate.getDay(); // 0 (Sun) to 6 (Sat)
+  const hour = etDate.getHours();
+  const minute = etDate.getMinutes();
+  const timeInMinutes = hour * 60 + minute;
+
+  // Weekend check (Saturday = 6, Sunday = 0)
   if (dayOfWeek === 0 || dayOfWeek === 6) {
     return false;
   }
-  
-  // US Eastern Time market hours (9:30 AM - 4:00 PM ET)
-  // Convert to UTC: 13:30 - 20:00 UTC
-  const nowUTC = new Date(now.getTime() + now.getTimezoneOffset() * 60000);
-  const hour = nowUTC.getUTCHours();
-  const minute = nowUTC.getUTCMinutes();
-  const timeInMinutes = hour * 60 + minute;
-  
-  return timeInMinutes >= 800 && timeInMinutes <= 1200;
+
+  // US Market Hours: 9:30 AM (570 min) to 4:00 PM (960 min) ET
+  return timeInMinutes >= 570 && timeInMinutes < 960;
 }
 
 export async function GET(request: NextRequest) {

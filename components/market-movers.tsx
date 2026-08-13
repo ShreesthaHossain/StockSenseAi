@@ -44,13 +44,15 @@ export function MarketMovers({ onStockSelect }: MarketMoversProps) {
       }
     };
 
+    // Initial fetch
     fetchMarketMovers();
 
-    // Auto-refresh every 60 seconds
-    const interval = setInterval(fetchMarketMovers, 60000);
+    // Auto-refresh interval (30s while market open, 60s otherwise)
+    const refreshInterval = data.isMarketOpen ? 30000 : 60000;
+    const interval = setInterval(fetchMarketMovers, refreshInterval);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [data.isMarketOpen]);
 
   const formatChange = (change: number, changePercent: number) => {
     const sign = change >= 0 ? "+" : "";
