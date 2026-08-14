@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 interface MarketMover {
   ticker: string;
   price: number;
@@ -54,7 +56,7 @@ export async function GET(request: NextRequest) {
     if (!apiKey || apiKey === "your_api_key_here") {
       return NextResponse.json(
         { 
-          error: "Finnhub API key not configured. Set FINNHUB_API_KEY in .env.local",
+          error: "Finnhub API key not configured. Please set the FINNHUB_API_KEY environment variable in your deployment platform (e.g., Vercel) settings, or in a local .env.local file.",
           data: [],
           isMarketOpen: false,
           lastUpdated: new Date().toISOString()
