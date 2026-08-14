@@ -14,7 +14,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PredictionCard } from "@/components/prediction-card";
 import { IndicatorsPanel } from "@/components/indicators-panel";
 import { TrendMeter } from "@/components/trend-meter";
-import { MarketMovers } from "@/components/market-movers";
 
 interface ResultsProps {
   data: PredictionResult;
@@ -97,7 +96,6 @@ export function Results({ data, isLoading = false, onStockSelect }: ResultsProps
       </div>
 
       <div className="space-y-4">
-        <MarketMovers onStockSelect={onStockSelect} />
         <IndicatorsPanel
           indicators={data.indicators}
           latestClose={latestClose}
