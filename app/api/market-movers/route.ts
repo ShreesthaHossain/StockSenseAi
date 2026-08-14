@@ -28,6 +28,20 @@ const MAJOR_STOCKS = [
   "BAC", "ADBE", "CRM", "NFLX", "INTC"
 ];
 
+// Fallback market movers data to display when API key is missing, invalid, or rate-limited
+const FALLBACK_MOVERS: MarketMover[] = [
+  { ticker: "TSLA", price: 218.50, change: 12.40, changePercent: 6.02 },
+  { ticker: "NVDA", price: 124.80, change: 5.60, changePercent: 4.70 },
+  { ticker: "AAPL", price: 178.20, change: -4.30, changePercent: -2.36 },
+  { ticker: "MSFT", price: 415.50, change: 3.10, changePercent: 0.75 },
+  { ticker: "AMZN", price: 185.10, change: -1.90, changePercent: -1.02 },
+  { ticker: "META", price: 495.20, change: 8.90, changePercent: 1.83 },
+  { ticker: "GOOGL", price: 168.40, change: -2.10, changePercent: -1.23 },
+  { ticker: "NFLX", price: 610.30, change: 14.50, changePercent: 2.43 },
+  { ticker: "DIS", price: 112.40, change: -3.20, changePercent: -2.77 },
+  { ticker: "JPM", price: 195.80, change: 2.40, changePercent: 1.24 }
+];
+
 function isMarketOpen(): boolean {
   const now = new Date();
   
@@ -50,23 +64,20 @@ function isMarketOpen(): boolean {
 }
 
 export async function GET(request: NextRequest) {
+  const marketOpen = isMarketOpen();
+
   try {
     const apiKey = process.env.FINNHUB_API_KEY;
     
     if (!apiKey || apiKey === "your_api_key_here") {
-      return NextResponse.json(
-        { 
-          error: "Finnhub API key not configured. Please set the FINNHUB_API_KEY environment variable in your deployment platform (e.g., Vercel) settings, or in a local .env.local file.",
-          data: [],
-          isMarketOpen: false,
-          lastUpdated: new Date().toISOString()
-        },
-        { status: 200 }
-      );
+      return NextResponse.json({ 
+        error: "Finnhub API key not configured in deployment settings. Showing fallback data.",
+        data: FALLBACK_MOVERS,
+        isMarketOpen: marketOpen,
+        lastUpdated: new Date().toISOString()
+      });
     }
 
-    const marketOpen = isMarketOpen();
-    
     // Fetch quotes for all stocks
     const quotes = await Promise.all(
       MAJOR_STOCKS.map(async (symbol) => {
@@ -101,6 +112,16 @@ export async function GET(request: NextRequest) {
     // Filter out failed requests and sort by absolute percentage change
     const validQuotes = quotes.filter((q): q is MarketMover => q !== null);
     
+    // If API returned no results (e.g. rate limit), use fallback data
+    if (validQuotes.length === 0) {
+      return NextResponse.json({
+        error: "Finnhub API rate limited or returned empty results. Showing fallback data.",
+        data: FALLBACK_MOVERS,
+        isMarketOpen: marketOpen,
+        lastUpdated: new Date().toISOString()
+      });
+    }
+    
     // Sort by absolute percentage change (biggest movers)
     const sortedQuotes = validQuotes.sort((a, b) => 
       Math.abs(b.changePercent) - Math.abs(a.changePercent)
@@ -129,14 +150,11 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Market movers error:", error);
     
-    return NextResponse.json(
-      { 
-        error: "Failed to fetch market data",
-        data: [],
-        isMarketOpen: false,
-        lastUpdated: new Date().toISOString()
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ 
+      error: "Failed to fetch market data. Showing fallback data.",
+      data: FALLBACK_MOVERS,
+      isMarketOpen: marketOpen,
+      lastUpdated: new Date().toISOString()
+    });
   }
 }
