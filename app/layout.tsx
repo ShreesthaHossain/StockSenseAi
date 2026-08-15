@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "StockSense AI | Stock Trend Prediction Dashboard",
   description:
-    "AI-powered stock trend prediction using Random Forest and technical indicators.",
+    "AI-powered stock trend prediction dashboard with ONNX inference and technical indicators.",
 };
 
 export default function RootLayout({

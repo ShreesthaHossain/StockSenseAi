@@ -1,5 +1,6 @@
 import type { IndicatorValues, OHLCVBar } from "./types";
 
+/** Must match scripts/features.py FEATURE_ORDER and models/stock_model_meta.json. */
 export const FEATURE_ORDER = [
   "sma5",
   "sma10",
@@ -31,12 +32,21 @@ export const FEATURE_ORDER = [
   "lag_return_2d",
   "lag_return_3d",
   "lag_return_5d",
+  "lag_return_10d",
   "rolling_return_mean_5d",
   "rolling_return_std_5d",
   "rolling_return_mean_10d",
   "rolling_return_std_10d",
+  "rolling_return_mean_20d",
+  "rolling_return_std_20d",
   "price_position_10d",
   "price_position_20d",
+  "price_position_30d",
+  "price_sma20_ratio",
+  "sma5_sma20_ratio",
+  "rsi_centered",
+  "spy_rel_return_5d",
+  "spy_rel_return_20d",
 ] as const;
 
 function sma(values: number[], period: number): number {
@@ -45,14 +55,12 @@ function sma(values: number[], period: number): number {
   return slice.reduce((sum, v) => sum + v, 0) / period;
 }
 
-function ema(values: number[], period: number): number {
-  if (values.length < period) return NaN;
-  const k = 2 / (period + 1);
-  let ema = values[0];
-  for (let i = 1; i < values.length; i++) {
-    ema = values[i] * k + ema * (1 - k);
-  }
-  return ema;
+function stdDev(values: number[]): number {
+  if (values.length === 0) return NaN;
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const variance =
+    values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;
+  return Math.sqrt(variance);
 }
 
 function computeRsi(closes: number[], period = 14): number {
@@ -60,7 +68,6 @@ function computeRsi(closes: number[], period = 14): number {
 
   let gains = 0;
   let losses = 0;
-
   for (let i = closes.length - period; i < closes.length; i++) {
     const change = closes[i] - closes[i - 1];
     if (change >= 0) gains += change;
@@ -70,12 +77,14 @@ function computeRsi(closes: number[], period = 14): number {
   const avgGain = gains / period;
   const avgLoss = losses / period;
   if (avgLoss === 0) return 100;
-
-  const rs = avgGain / avgLoss;
-  return 100 - 100 / (1 + rs);
+  return 100 - 100 / (1 + avgGain / avgLoss);
 }
 
-function computeMacd(closes: number[]): { macd: number; signal: number; histogram: number } {
+function computeMacd(closes: number[]): {
+  macd: number;
+  signal: number;
+  histogram: number;
+} {
   const emaArr = (data: number[], span: number): number[] => {
     const k = 2 / (span + 1);
     const result: number[] = [data[0]];
@@ -91,26 +100,28 @@ function computeMacd(closes: number[]): { macd: number; signal: number; histogra
   const ema26 = emaArr(closes, 26);
   const macdLine = ema12.map((v, i) => v - ema26[i]);
   const signalLine = emaArr(macdLine, 9);
-
   const macdVal = macdLine[macdLine.length - 1];
   const signalVal = signalLine[signalLine.length - 1];
-  const histogram = macdVal - signalVal;
-
-  return { macd: macdVal, signal: signalVal, histogram };
+  return {
+    macd: macdVal,
+    signal: signalVal,
+    histogram: macdVal - signalVal,
+  };
 }
 
 function computeAtr(bars: OHLCVBar[], period = 14): number {
   if (bars.length < period + 1) return NaN;
-
   let trSum = 0;
   for (let i = bars.length - period; i < bars.length; i++) {
     const high = bars[i].high;
     const low = bars[i].low;
     const prevClose = bars[i - 1].close;
-    const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
-    trSum += tr;
+    trSum += Math.max(
+      high - low,
+      Math.abs(high - prevClose),
+      Math.abs(low - prevClose)
+    );
   }
-
   return trSum / period;
 }
 
@@ -119,161 +130,152 @@ function computeBollingerBands(
   period = 20
 ): { bbPosition: number; bbWidth: number } {
   if (closes.length < period) return { bbPosition: NaN, bbWidth: NaN };
-
   const slice = closes.slice(-period);
   const mean = slice.reduce((a, b) => a + b, 0) / period;
-  const variance = slice.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / period;
-  const std = Math.sqrt(variance);
-
+  const std = stdDev(slice);
   const upper = mean + 2 * std;
   const lower = mean - 2 * std;
-  const width = (upper - lower) / mean;
-  const position = upper !== lower ? (closes[closes.length - 1] - lower) / (upper - lower) : 0.5;
-
+  const width = mean !== 0 ? (upper - lower) / mean : NaN;
+  const position =
+    upper !== lower ? (closes[closes.length - 1] - lower) / (upper - lower) : 0.5;
   return { bbPosition: position, bbWidth: width };
 }
 
-function computeObv(volumes: number[], closes: number[]): number {
-  if (volumes.length < 2) return 0;
-
-  let obv = volumes[0];
-  for (let i = 1; i < volumes.length; i++) {
-    const change = closes[i] - closes[i - 1];
-    if (change > 0) obv += volumes[i];
-    else if (change < 0) obv -= volumes[i];
-  }
-  return obv;
+function normalizeObv(obvSeries: number[]): number {
+  if (obvSeries.length < 20) return NaN;
+  const window = obvSeries.slice(-20);
+  const mean = window.reduce((a, b) => a + b, 0) / window.length;
+  const std = stdDev(window);
+  return std > 0 ? (obvSeries[obvSeries.length - 1] - mean) / std : 0;
 }
 
-function normalizeObv(obv: number, volumes: number[], closes: number[]): number {
-  const recentVolumes = volumes.slice(-20);
-  const mean = recentVolumes.reduce((a, b) => a + b, 0) / recentVolumes.length;
-  const std = Math.sqrt(
-    recentVolumes.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / recentVolumes.length
-  );
-  return std > 0 ? (obv - mean * closes.length) / (std * Math.sqrt(closes.length)) : 0;
+function pctChange(closes: number[], periods: number, at = -1): number {
+  const end = at < 0 ? closes.length + at : at;
+  const start = end - periods;
+  if (start < 0 || closes[start] <= 0) return NaN;
+  return (closes[end] - closes[start]) / closes[start];
 }
 
-export function computeIndicators(bars: OHLCVBar[]): IndicatorValues {
+/** Match Python: closes.pct_change(n).shift(n) at latest bar */
+function lagReturn(closes: number[], n: number): number {
+  const end = closes.length - 1 - n;
+  const start = end - n;
+  if (start < 0 || closes[start] <= 0) return NaN;
+  return (closes[end] - closes[start]) / closes[start];
+}
+
+function pricePosition(closes: number[], period: number): number {
+  if (closes.length < period) return NaN;
+  const slice = closes.slice(-period);
+  const min = Math.min(...slice);
+  const max = Math.max(...slice);
+  if (max === min) return 0.5;
+  return (closes[closes.length - 1] - min) / (max - min);
+}
+
+function rollingReturnStats(
+  returns: number[],
+  period: number
+): { mean: number; std: number } {
+  if (returns.length < period) return { mean: NaN, std: NaN };
+  const slice = returns.slice(-period);
+  const mean = slice.reduce((a, b) => a + b, 0) / slice.length;
+  return { mean, std: stdDev(slice) };
+}
+
+export function computeIndicators(
+  bars: OHLCVBar[],
+  spyBars?: OHLCVBar[]
+): IndicatorValues {
   const closes = bars.map((b) => b.close);
   const volumes = bars.map((b) => b.volume);
   const { macd, signal, histogram } = computeMacd(closes);
 
-  const latestClose = closes[closes.length - 1];
-  const prevClose = closes[closes.length - 2];
-  const close3Ago = closes[closes.length - 4];
-  const close5Ago = closes[closes.length - 6];
-  const close7Ago = closes[closes.length - 8];
-  const close10Ago = closes[closes.length - 11];
-  const close14Ago = closes[closes.length - 15];
-  const close20Ago = closes[closes.length - 21];
+  const returns = closes.map((c, i) =>
+    i > 0 && closes[i - 1] > 0 ? (c - closes[i - 1]) / closes[i - 1] : 0
+  );
+
   const latestVolume = volumes[volumes.length - 1];
   const prevVolume = volumes[volumes.length - 2];
 
-  // Price changes
-  const priceChange3d = close3Ago > 0 ? (latestClose - close3Ago) / close3Ago : 0;
-  const priceChange7d = close7Ago > 0 ? (latestClose - close7Ago) / close7Ago : 0;
-  const priceChange14d = close14Ago > 0 ? (latestClose - close14Ago) / close14Ago : 0;
+  const obvSeries: number[] = [];
+  let runningObv = 0;
+  for (let i = 0; i < volumes.length; i++) {
+    if (i === 0) runningObv = volumes[0];
+    else if (closes[i] > closes[i - 1]) runningObv += volumes[i];
+    else if (closes[i] < closes[i - 1]) runningObv -= volumes[i];
+    obvSeries.push(runningObv);
+  }
 
-  // Volatility (standard deviation of returns)
-  const returns = closes.map((c, i) => (i > 0 ? (c - closes[i - 1]) / closes[i - 1] : 0));
-  const volatility5d = returns.slice(-5).reduce((sum, r, i, arr) => {
-    const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
-    return sum + Math.pow(r - mean, 2);
-  }, 0) / 5;
-  const volatility10d = returns.slice(-10).reduce((sum, r, i, arr) => {
-    const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
-    return sum + Math.pow(r - mean, 2);
-  }, 0) / 10;
-  const volatility20d = returns.slice(-20).reduce((sum, r, i, arr) => {
-    const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
-    return sum + Math.pow(r - mean, 2);
-  }, 0) / 20;
-
-  // Bollinger Bands
+  const volumeSma = sma(volumes, 20);
+  const roll5 = rollingReturnStats(returns, 5);
+  const roll10 = rollingReturnStats(returns, 10);
+  const roll20 = rollingReturnStats(returns, 20);
   const { bbPosition, bbWidth } = computeBollingerBands(closes);
 
-  // OBV (normalized)
-  const obv = computeObv(volumes, closes);
-  const obvNormalized = normalizeObv(obv, volumes, closes);
+  const sma20Val = sma(closes, 20);
+  const sma5Val = sma(closes, 5);
+  const rsi = computeRsi(closes, 14);
+  const return5d = pctChange(closes, 5);
+  const return20d = pctChange(closes, 20);
 
-  // ROC 5-day and 10-day
-  const roc5 = close5Ago > 0 ? (latestClose - close5Ago) / close5Ago : 0;
-  const roc10 = close10Ago > 0 ? (latestClose - close10Ago) / close10Ago : 0;
-
-  // Volume SMA ratio
-  const volumeSma = sma(volumes, 20);
-  const volumeSmaRatio = volumeSma > 0 ? latestVolume / volumeSma : 0;
-
-  // ATR
-  const atr14 = computeAtr(bars, 14);
-
-  // Lag returns
-  const lagReturn1d = prevClose > 0 ? (prevClose - closes[closes.length - 2]) / closes[closes.length - 2] : 0;
-  const lagReturn2d = closes.length >= 3 && closes[closes.length - 3] > 0
-    ? (prevClose - closes[closes.length - 3]) / closes[closes.length - 3]
-    : 0;
-  const lagReturn3d = close3Ago > 0 ? (close3Ago - closes[closes.length - 4]) / closes[closes.length - 4] : 0;
-  const lagReturn5d = close5Ago > 0 ? (close5Ago - closes[closes.length - 6]) / closes[closes.length - 6] : 0;
-
-  // Rolling return statistics
-  const rollingReturns5d = returns.slice(-5);
-  const rollingMean5d = rollingReturns5d.reduce((a, b) => a + b, 0) / rollingReturns5d.length;
-  const rollingStd5d = Math.sqrt(
-    rollingReturns5d.reduce((sum, r) => sum + Math.pow(r - rollingMean5d, 2), 0) / rollingReturns5d.length
-  );
-
-  const rollingReturns10d = returns.slice(-10);
-  const rollingMean10d = rollingReturns10d.reduce((a, b) => a + b, 0) / rollingReturns10d.length;
-  const rollingStd10d = Math.sqrt(
-    rollingReturns10d.reduce((sum, r) => sum + Math.pow(r - rollingMean10d, 2), 0) / rollingReturns10d.length
-  );
-
-  // Price position (where current price stands relative to recent range)
-  const pricePosition10d = close10Ago > 0
-    ? (latestClose - Math.min(...closes.slice(-10))) / (Math.max(...closes.slice(-10)) - Math.min(...closes.slice(-10)))
-    : 0.5;
-  const pricePosition20d = close20Ago > 0
-    ? (latestClose - Math.min(...closes.slice(-20))) / (Math.max(...closes.slice(-20)) - Math.min(...closes.slice(-20)))
-    : 0.5;
+  let spyRel5 = 0;
+  let spyRel20 = 0;
+  if (spyBars && spyBars.length >= 21) {
+    const spyCloses = spyBars.map((b) => b.close);
+    const spyRet5 = pctChange(spyCloses, 5);
+    const spyRet20 = pctChange(spyCloses, 20);
+    if (Number.isFinite(spyRet5)) spyRel5 = return5d - spyRet5;
+    if (Number.isFinite(spyRet20)) spyRel20 = return20d - spyRet20;
+  }
 
   return {
-    sma5: sma(closes, 5),
+    sma5: sma5Val,
     sma10: sma(closes, 10),
-    sma20: sma(closes, 20),
+    sma20: sma20Val,
     sma50: sma(closes, 50),
-    rsi14: computeRsi(closes, 14),
+    rsi14: rsi,
     macd,
     macdSignal: signal,
     macdHistogram: histogram,
-    return1d: prevClose > 0 ? (latestClose - prevClose) / prevClose : 0,
-    return5d: close5Ago > 0 ? (latestClose - close5Ago) / close5Ago : 0,
-    return10d: close10Ago > 0 ? (latestClose - close10Ago) / close10Ago : 0,
-    return20d: close20Ago > 0 ? (latestClose - close20Ago) / close20Ago : 0,
-    price_change_3d: priceChange3d,
-    price_change_7d: priceChange7d,
-    price_change_14d: priceChange14d,
-    volatility_5d: volatility5d,
-    volatility_10d: volatility10d,
-    volatility_20d: volatility20d,
-    atr14,
+    return1d: pctChange(closes, 1),
+    return5d,
+    return10d: pctChange(closes, 10),
+    return20d,
+    price_change_3d: pctChange(closes, 3),
+    price_change_7d: pctChange(closes, 7),
+    price_change_14d: pctChange(closes, 14),
+    volatility_5d: roll5.std,
+    volatility_10d: roll10.std,
+    volatility_20d: roll20.std,
+    atr14: computeAtr(bars, 14),
     bb_position: bbPosition,
     bb_width: bbWidth,
-    volumeChange: prevVolume > 0 ? (latestVolume - prevVolume) / prevVolume : 0,
-    volumeSmaRatio,
-    obv: obvNormalized,
-    roc_5: roc5,
-    roc_10: roc10,
-    lag_return_1d: lagReturn1d,
-    lag_return_2d: lagReturn2d,
-    lag_return_3d: lagReturn3d,
-    lag_return_5d: lagReturn5d,
-    rolling_return_mean_5d: rollingMean5d,
-    rolling_return_std_5d: rollingStd5d,
-    rolling_return_mean_10d: rollingMean10d,
-    rolling_return_std_10d: rollingStd10d,
-    price_position_10d: pricePosition10d,
-    price_position_20d: pricePosition20d,
+    volumeChange:
+      prevVolume > 0 ? (latestVolume - prevVolume) / prevVolume : 0,
+    volumeSmaRatio: volumeSma > 0 ? latestVolume / volumeSma : 0,
+    obv: normalizeObv(obvSeries),
+    roc_5: pctChange(closes, 5),
+    roc_10: pctChange(closes, 10),
+    lag_return_1d: lagReturn(closes, 1),
+    lag_return_2d: lagReturn(closes, 2),
+    lag_return_3d: lagReturn(closes, 3),
+    lag_return_5d: lagReturn(closes, 5),
+    lag_return_10d: lagReturn(closes, 10),
+    rolling_return_mean_5d: roll5.mean,
+    rolling_return_std_5d: roll5.std,
+    rolling_return_mean_10d: roll10.mean,
+    rolling_return_std_10d: roll10.std,
+    rolling_return_mean_20d: roll20.mean,
+    rolling_return_std_20d: roll20.std,
+    price_position_10d: pricePosition(closes, 10),
+    price_position_20d: pricePosition(closes, 20),
+    price_position_30d: pricePosition(closes, 30),
+    price_sma20_ratio: sma20Val > 0 ? closes[closes.length - 1] / sma20Val : NaN,
+    sma5_sma20_ratio: sma20Val > 0 ? sma5Val / sma20Val : NaN,
+    rsi_centered: (rsi - 50) / 50,
+    spy_rel_return_5d: spyRel5,
+    spy_rel_return_20d: spyRel20,
   };
 }
 
@@ -284,5 +286,8 @@ export function indicatorsToFeatureVector(
 }
 
 export function isValidFeatureVector(features: number[]): boolean {
-  return features.every((v) => Number.isFinite(v));
+  return (
+    features.length === FEATURE_ORDER.length &&
+    features.every((v) => Number.isFinite(v))
+  );
 }

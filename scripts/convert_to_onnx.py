@@ -1,4 +1,4 @@
-"""Convert trained sklearn Random Forest to ONNX format."""
+"""Convert trained sklearn model (including Pipelines) to ONNX."""
 
 from __future__ import annotations
 
@@ -22,14 +22,33 @@ def main() -> None:
         )
 
     model = joblib.load(pkl_path)
-    n_features = model.n_features_in_
+    n_features = getattr(model, "n_features_in_", None)
+    if n_features is None and hasattr(model, "named_steps"):
+        # Pipeline: infer from first step or from a dummy predict
+        n_features = model.named_steps["scaler"].n_features_in_
 
-    initial_type = [("float_input", FloatTensorType([None, n_features]))]
+    initial_type = [("float_input", FloatTensorType([None, int(n_features)]))]
+
+    options = {}
+    # Disable ZipMap for classifiers so probabilities are a dense array
+    try:
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.ensemble import HistGradientBoostingClassifier
+
+        for est in model.named_steps.values() if hasattr(model, "named_steps") else [model]:
+            if isinstance(est, (LogisticRegression, HistGradientBoostingClassifier)):
+                options[id(est)] = {"zipmap": False}
+    except Exception:
+        pass
+
+    if not options:
+        options = {id(model): {"zipmap": False}}
+
     onnx_model = convert_sklearn(
         model,
         initial_types=initial_type,
         target_opset=12,
-        options={id(model): {"zipmap": False}},
+        options=options,
     )
 
     with open(onnx_path, "wb") as f:
@@ -37,8 +56,7 @@ def main() -> None:
 
     print(f"Converted model saved to {onnx_path}")
 
-    # Verify ONNX output matches sklearn
-    sample = np.random.randn(1, n_features).astype(np.float32)
+    sample = np.random.randn(1, int(n_features)).astype(np.float32)
     sklearn_proba = model.predict_proba(sample)[0]
 
     import onnxruntime as ort
@@ -46,14 +64,15 @@ def main() -> None:
     session = ort.InferenceSession(str(onnx_path))
     input_name = session.get_inputs()[0].name
     outputs = session.run(None, {input_name: sample})
-    output_map = {
-        o.name: arr for o, arr in zip(session.get_outputs(), outputs)
-    }
-    onnx_proba = output_map["probabilities"][0]
-    onnx_label = output_map["label"][0]
+    output_map = {o.name: arr for o, arr in zip(session.get_outputs(), outputs)}
+    # Find probability output
+    if "probabilities" in output_map:
+        onnx_proba = output_map["probabilities"][0]
+    else:
+        # last output often probabilities
+        onnx_proba = outputs[-1][0]
 
     print(f"Sklearn proba: {sklearn_proba}")
-    print(f"ONNX label:    {onnx_label}")
     print(f"ONNX proba:    {onnx_proba}")
     print("Conversion complete.")
 

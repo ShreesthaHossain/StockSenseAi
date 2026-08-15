@@ -105,8 +105,6 @@ export async function predict(features: number[]): Promise<{
 
   const output = await session.run({ [inputName]: inputTensor });
 
-  const labelTensor =
-    output["label"] ?? output[session.outputNames[0]];
   const probTensor =
     output["probabilities"] ??
     output[
@@ -114,11 +112,12 @@ export async function predict(features: number[]): Promise<{
     ] ??
     output[session.outputNames[1]];
 
-  const label = Number(labelTensor.data[0]);
   const rawProba = Array.from(probTensor.data as Float32Array).slice(0, 2);
   const [downProb, upProb] = normalizeProbabilities(rawProba);
 
-  const trend: "up" | "down" = label === 1 ? "up" : "down";
+  const meta = getModelMeta();
+  const threshold = meta.decisionThreshold ?? 0.5;
+  const trend: "up" | "down" = upProb >= threshold ? "up" : "down";
   const confidence = trend === "up" ? upProb : downProb;
 
   return { trend, confidence };

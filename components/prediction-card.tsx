@@ -1,6 +1,6 @@
 "use client";
 
-import { TrendingDown, TrendingUp, Loader2, Info } from "lucide-react";
+import { TrendingDown, TrendingUp, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -10,6 +10,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { ModelMeta, PredictionExplanation } from "@/lib/types";
+import {
+  formatLabelDescription,
+  formatModelName,
+  formatPredictionHorizon,
+} from "@/lib/model-display";
 import { formatPercent } from "@/lib/utils";
 
 interface PredictionCardProps {
@@ -30,6 +35,7 @@ export function PredictionCard({
   isLoading = false,
 }: PredictionCardProps) {
   const isUp = trend === "up";
+  const modelName = formatModelName(meta);
 
   if (isLoading) {
     return (
@@ -68,7 +74,7 @@ export function PredictionCard({
           </Badge>
         </CardTitle>
         <CardDescription className="text-xs">
-          Random Forest forecast for {ticker} next-day trend
+          {modelName} forecast for {ticker} — {formatLabelDescription(meta)}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -96,16 +102,18 @@ export function PredictionCard({
           </div>
           <div className="rounded-lg bg-zinc-950/50 p-3">
             <p className="text-zinc-500 text-xs">Training Samples</p>
-            <p className="text-lg font-semibold">{meta.samples.toLocaleString()}</p>
+            <p className="text-lg font-semibold">
+              {meta.samples.toLocaleString()}
+            </p>
           </div>
         </div>
 
         <p className="text-xs text-zinc-500">
           Trained on {meta.tickers.slice(0, 5).join(", ")}
           {meta.tickers.length > 5 ? ` +${meta.tickers.length - 5} more` : ""}
+          {meta.numFeatures != null ? ` · ${meta.numFeatures} features` : ""}
         </p>
 
-        {/* AI Explanation Section */}
         {explanation && (
           <div className="mt-4 rounded-lg border border-zinc-700 bg-zinc-900/30 p-3">
             <div className="mb-2 flex items-center gap-2">
@@ -134,29 +142,46 @@ export function PredictionCard({
           </div>
         )}
 
-        {/* Prediction Information Row */}
-        <div className="mt-4 flex flex-col gap-1 text-xs text-zinc-500">
-          <div className="flex justify-between">
-            <span className="text-zinc-400">Data source:</span>
-            <span className="font-medium">Yahoo Finance</span>
+        <div className="mt-4 space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/40 p-3 text-xs">
+          <p className="mb-1 font-medium text-zinc-300">Model details</p>
+          <div className="flex justify-between gap-3">
+            <span className="text-zinc-400">Data source</span>
+            <span className="text-right font-medium text-zinc-200">
+              Yahoo Finance (OHLCV)
+            </span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-zinc-400">Model:</span>
-            <span className="font-medium">Random Forest</span>
+          <div className="flex justify-between gap-3">
+            <span className="text-zinc-400">Model name</span>
+            <span className="text-right font-medium text-zinc-200">
+              {modelName}
+            </span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-zinc-400">Prediction horizon:</span>
-            <span className="font-medium">Next trading day</span>
+          <div className="flex justify-between gap-3">
+            <span className="text-zinc-400">Prediction horizon</span>
+            <span className="text-right font-medium text-zinc-200">
+              {formatPredictionHorizon(meta)}
+            </span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-zinc-400">Market movers data:</span>
-            <span className="font-medium">Finnhub.io</span>
+          {meta.labelDescription && (
+            <div className="flex justify-between gap-3">
+              <span className="text-zinc-400">Label</span>
+              <span className="text-right font-medium text-zinc-200">
+                {meta.labelDescription}
+              </span>
+            </div>
+          )}
+          <div className="flex justify-between gap-3">
+            <span className="text-zinc-400">Market movers data</span>
+            <span className="text-right font-medium text-zinc-200">
+              Finnhub.io
+            </span>
           </div>
         </div>
 
         <div className="mt-4 rounded-lg border border-zinc-700 bg-zinc-900/30 p-3">
           <p className="text-xs text-zinc-400">
-            ⚠️ This prediction is intended for educational purposes only and should not be considered financial or investment advice. Always do your own research before making any investment decisions.
+            This prediction is for educational purposes only and is not financial
+            advice. Always do your own research before investing.
           </p>
         </div>
       </CardContent>

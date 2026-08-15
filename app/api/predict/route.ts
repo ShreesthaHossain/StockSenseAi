@@ -27,8 +27,12 @@ export async function GET(request: NextRequest) {
     }
 
     let history;
+    let spyHistory;
     try {
-      history = await fetchStockHistory(trimmedTicker);
+      [history, spyHistory] = await Promise.all([
+        fetchStockHistory(trimmedTicker),
+        fetchStockHistory("SPY"),
+      ]);
     } catch (fetchError) {
       return NextResponse.json(
         { error: "Unable to fetch stock data. Please check the ticker symbol.", code: "FETCH_ERROR" },
@@ -43,14 +47,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (history.length < 30) {
+    if (history.length < 60) {
       return NextResponse.json(
-        { error: `Not enough data (${history.length} days available). Need at least 30 days.`, code: "INSUFFICIENT_DATA" },
+        { error: `Not enough data (${history.length} days available). Need at least 60 days.`, code: "INSUFFICIENT_DATA" },
         { status: 422 }
       );
     }
 
-    const indicators = computeIndicators(history);
+    const indicators = computeIndicators(history, spyHistory);
     const features = indicatorsToFeatureVector(indicators);
 
     if (!isValidFeatureVector(features)) {

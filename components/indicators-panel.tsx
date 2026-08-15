@@ -50,12 +50,19 @@ const ALL_INDICATORS = [
   { label: "ROC (5d)", key: "roc_5" as const, format: "percent" as const },
   { label: "ROC (10d)", key: "roc_10" as const, format: "percent" as const },
   { label: "Lag Return (1d)", key: "lag_return_1d" as const, format: "percent" as const },
+  { label: "Lag Return (2d)", key: "lag_return_2d" as const, format: "percent" as const },
   { label: "Lag Return (3d)", key: "lag_return_3d" as const, format: "percent" as const },
   { label: "Lag Return (5d)", key: "lag_return_5d" as const, format: "percent" as const },
+  { label: "Lag Return (10d)", key: "lag_return_10d" as const, format: "percent" as const },
   { label: "Rolling Return Mean (5d)", key: "rolling_return_mean_5d" as const, format: "percent" as const },
   { label: "Rolling Return Std (5d)", key: "rolling_return_std_5d" as const, format: "percent" as const },
+  { label: "Rolling Return Mean (10d)", key: "rolling_return_mean_10d" as const, format: "percent" as const },
+  { label: "Rolling Return Std (10d)", key: "rolling_return_std_10d" as const, format: "percent" as const },
+  { label: "Rolling Return Mean (20d)", key: "rolling_return_mean_20d" as const, format: "percent" as const },
+  { label: "Rolling Return Std (20d)", key: "rolling_return_std_20d" as const, format: "percent" as const },
   { label: "Price Position (10d)", key: "price_position_10d" as const, format: "number" as const },
   { label: "Price Position (20d)", key: "price_position_20d" as const, format: "number" as const },
+  { label: "Price Position (30d)", key: "price_position_30d" as const, format: "number" as const },
 ];
 
 function IndicatorRow({

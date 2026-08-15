@@ -69,7 +69,12 @@ export default function DashboardPage() {
       <header className="border-b border-zinc-800 px-6 py-5">
         <h1 className="text-xl font-bold">StockSense AI</h1>
         <p className="text-sm text-zinc-400">
-          Random Forest stock trend prediction
+          {result?.meta?.modelType
+            ? `${result.meta.modelType} stock trend prediction`
+            : "AI-powered stock trend prediction"}
+          {result?.meta?.predictionHorizonDays != null
+            ? ` · ${result.meta.predictionHorizonDays}-day horizon`
+            : ""}
         </p>
       </header>
 
